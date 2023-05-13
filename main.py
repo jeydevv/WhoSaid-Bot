@@ -1,3 +1,5 @@
+import os.path
+
 import wws
 import discord
 import pandas as pd
@@ -16,11 +18,15 @@ async def on_ready():
 @bot.command()
 async def whowouldsay(ctx, *, msg):
     print("whowouldsay called")
-    async with ctx.typing():
-        prediction = await wws.predict(msg, str(ctx.guild.id) + "-training data.csv")
+    if os.path.exists(str(ctx.guild.id) + "-training data.csv"):
+        async with ctx.typing():
+            prediction = await wws.predict(msg, str(ctx.guild.id) + "-training data.csv")
 
-        print(prediction[0])
-        await ctx.reply(prediction[0])
+            print(prediction[0])
+            await ctx.reply(prediction[0])
+    else:
+        await ctx.channel.send("Please use '**!train**' *(uses all server messages, slow)* or '**!train recent**' *(uses up to the last 4000 "
+                               "messages of each channel, faster)* before trying to use '**!whowouldsay**'")
 
 
 @bot.command()
@@ -66,7 +72,7 @@ async def train(ctx, recent=None):
         print("model fit")
         await ctx.channel.send("Retrained on " + str(main_df.size) + " messages from " + str(chnl_count) + " channels!")
     else:
-        await ctx.channel.send("Unauthorised >:(")
+        await ctx.channel.send("Unauthorised, only a server admin can train the bot")
         print("Unauthorised (" + ctx.author.name + ")")
 
 
