@@ -17,7 +17,7 @@ async def on_ready():
 async def whowouldsay(ctx, *, msg):
     print("whowouldsay called")
     async with ctx.typing():
-        prediction = wws.predict(msg)
+        prediction = await wws.predict(msg, str(ctx.guild.id) + "-training data.csv")
 
         print(prediction[0])
         await ctx.reply(prediction[0])
@@ -26,7 +26,7 @@ async def whowouldsay(ctx, *, msg):
 @bot.command()
 async def train(ctx, recent=None):
     print("train called")
-    if ctx.author.id == ctx.guild.owner.id or \
+    if ctx.author.guild_permissions.administrator or \
             ctx.author.id == 123524026923614208:
         await ctx.channel.send("Training started, this may take a while...")
         async with ctx.typing():
@@ -62,9 +62,7 @@ async def train(ctx, recent=None):
                         print("channel too small")
                     print("done with " + chnl.name)
         print("collected all messages")
-        wws.savetraindata(main_df)
-        print("SAVED")
-        wws.refit()
+        await wws.savetraindata(main_df, str(ctx.guild.id) + "-training data.csv")
         print("model fit")
         await ctx.channel.send("Retrained on " + str(main_df.size) + " messages from " + str(chnl_count) + " channels!")
     else:
@@ -72,16 +70,15 @@ async def train(ctx, recent=None):
         print("Unauthorised (" + ctx.author.name + ")")
 
 
-# In Progress
+""" In Progress
 @bot.command()
 async def wouldsay(ctx, user, *, msg):
     if ctx.author.id == 123524026923614208:
         print("wouldsay called")
         async with ctx.typing():
             test = wws.wouldsay(user, msg)
-
             print(test[0])
             await ctx.reply(test[0])
-
+"""
 
 bot.run("")  # BOT TOKEN HERE
