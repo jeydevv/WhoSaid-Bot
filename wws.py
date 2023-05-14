@@ -3,7 +3,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 
-context_range = 3
+# Ideal context range found by testing F1 and accuracy of ranges from 1-10
+context_range = 4
 
 
 async def predict(msg, server_csv):
