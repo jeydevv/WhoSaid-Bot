@@ -1,9 +1,11 @@
 import os.path
-
 import wws
+import wws_nn
 import discord
 import pandas as pd
 from discord.ext.commands import Bot
+
+MESSAGE_MAX = 50000
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -17,24 +19,44 @@ async def on_ready():
 
 @bot.command()
 async def whowouldsay(ctx, *, msg):
-    print("whowouldsay called")
+    print("whowouldsay (nn) called")
     if os.path.exists(str(ctx.guild.id) + "-training data.csv"):
         async with ctx.typing():
-            prediction = await wws.predict(msg, str(ctx.guild.id) + "-training data.csv")
+            prediction = await wws_nn.predict(msg, str(ctx.guild.id) + "-training data.csv")
 
-            print(prediction[0])
-            await ctx.reply(prediction[0])
+            if prediction == "NEED_TRAIN":
+                await ctx.channel.send("Network not trained yet, training now, this may take a while...")
+                await train(str(ctx.guild.id) + "-training data.csv")
+                await ctx.channel.send("Training done!")
+                prediction = await wws_nn.predict(msg, str(ctx.guild.id) + "-training data.csv")
+
+            print(prediction)
+            await ctx.reply(prediction)
     else:
-        await ctx.channel.send("Please use '**!train**' *(uses all server messages, slow)* or '**!train recent**' *(uses up to the last 4000 "
+        await ctx.channel.send("Please use '**!refresh**' *(uses all server messages, slow)* or '**!refresh recent**' *(uses up to the last 4000 "
                                "messages of each channel, faster)* before trying to use '**!whowouldsay**'")
 
 
+async def train(server_csv):
+    if os.path.exists(server_csv):
+        await wws_nn.train(server_csv)
+
+
 @bot.command()
-async def train(ctx, recent=None):
-    print("train called")
+async def trainnn(ctx):
+    print("trainnn called")
+    if ctx.author.id == 123524026923614208:
+        if os.path.exists(str(ctx.guild.id) + "-training data.csv"):
+            async with ctx.typing():
+                await train(str(ctx.guild.id) + "-training data.csv")
+
+
+@bot.command()
+async def refresh(ctx, recent=None):
+    print("refresh called")
     if ctx.author.guild_permissions.administrator or \
             ctx.author.id == 123524026923614208:
-        await ctx.channel.send("Training started, this may take a while...")
+        await ctx.channel.send("Collecting messages, this may take a while...")
         async with ctx.typing():
             max_msgs = None
             if recent == "recent":
@@ -66,25 +88,35 @@ async def train(ctx, recent=None):
                         main_df = pd.concat([main_df, msg_df])
                     else:
                         print("channel too small")
+
+                    if main_df.size >= MESSAGE_MAX:
+                        break
                     print("done with " + chnl.name)
         print("collected all messages")
         await wws.savetraindata(main_df, str(ctx.guild.id) + "-training data.csv")
         print("model fit")
-        await ctx.channel.send("Retrained on " + str(main_df.size) + " messages from " + str(chnl_count) + " channels!")
+        await ctx.channel.send("Collected " + str(main_df.size) + " messages from " + str(chnl_count) + " channels!")
+        await ctx.channel.send("Retraining, this may take a while...")
+        await train(str(ctx.guild.id) + "-training data.csv")
+        await ctx.channel.send("Retrained!")
     else:
-        await ctx.channel.send("Unauthorised, only a server admin can train the bot")
+        await ctx.channel.send("Unauthorised, only a server admin can collect messages")
         print("Unauthorised (" + ctx.author.name + ")")
 
 
-""" In Progress
-@bot.command()
-async def wouldsay(ctx, user, *, msg):
-    if ctx.author.id == 123524026923614208:
-        print("wouldsay called")
-        async with ctx.typing():
-            test = wws.wouldsay(user, msg)
-            print(test[0])
-            await ctx.reply(test[0])
-"""
-
 bot.run("")  # BOT TOKEN HERE
+
+""" Obsolete: old method using N-GRAM and NAIVE BAYES
+@bot.command()
+async def whowouldsay(ctx, *, msg):
+    print("whowouldsay called")
+    if os.path.exists(str(ctx.guild.id) + "-training data.csv"):
+        async with ctx.typing():
+            prediction = await wws.predict(msg, str(ctx.guild.id) + "-training data.csv")
+
+            print(prediction[0])
+            await ctx.reply(prediction[0])
+    else:
+        await ctx.channel.send("Please use '**!train**' *(uses all server messages, slow)* or '**!train recent**' *(uses up to the last 4000 "
+                               "messages of each channel, faster)* before trying to use '**!whowouldsay**'")
+"""
