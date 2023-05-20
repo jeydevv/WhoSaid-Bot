@@ -1,6 +1,6 @@
-import os.path
 import wws
 import wws_nn
+import os.path
 import discord
 import pandas as pd
 from discord.ext.commands import Bot
