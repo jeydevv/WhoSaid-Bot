@@ -1,4 +1,40 @@
+import pandas as pd
+from math import ceil
+
+
 async def savetraindata(df, server_csv):
+    user_msgcount = {}
+    min_msgs = 0
+
+    for userid in df["user"].unique():
+        count = len(df.loc[df["user"] == userid])
+        user_msgcount[userid] = count
+        min_msgs += count
+    min_msgs = ceil((min_msgs / len(df["user"].unique())))
+
+    for userid in df["user"].unique():
+        if user_msgcount[userid] < min_msgs:
+            df = df[df.user != userid]
+
+    max_msgs = 0
+    for i in user_msgcount:
+        if user_msgcount[i] > max_msgs:
+            max_msgs = user_msgcount[i]
+
+    for user in df['user'].unique():
+        new_msg_count = max_msgs - user_msgcount[user] + 1
+        user_msgs = df[df.user == user]
+        x = 0
+        for i in range(1, new_msg_count):
+            to_add = user_msgs.iloc[x]
+            df = pd.concat([df, to_add], ignore_index=True)
+            df.loc[len(df)] = to_add
+            x += 1
+            if x == len(user_msgs):
+                x = 0
+    df = df[df['user'].notna()]
+    df = df.drop(df.columns[2], axis=1)
+
     df.to_csv(server_csv, index=False)
     print(server_csv + " saved")
 

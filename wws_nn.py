@@ -7,10 +7,10 @@ from nltk.corpus import stopwords
 from gensim.models import Word2Vec
 from keras.utils import to_categorical
 from nltk.tokenize import word_tokenize
-
 from sklearn.model_selection import train_test_split
 
 server_models = {}
+SAMPLE_LENGTH = 30
 
 
 async def get_model(server_csv):
@@ -50,13 +50,13 @@ async def train(server_csv):
     x_test = x_test.apply(preprocess)
 
     sentences = [sentence.split() for sentence in x_train]
-    w2v_model = Word2Vec(sentences, vector_size=100, window=5, min_count=5, workers=4)
+    w2v_model = Word2Vec(sentences, vector_size=SAMPLE_LENGTH, window=5, min_count=5, workers=4)
 
     def vectorize(sentence):
         words = sentence.split()
         words_vecs = [w2v_model.wv[word] for word in words if word in w2v_model.wv]
         if len(words_vecs) == 0:
-            return np.zeros(100)
+            return np.zeros(SAMPLE_LENGTH)
         words_vecs = np.array(words_vecs)
         return words_vecs.mean(axis=0)
 
@@ -68,10 +68,8 @@ async def train(server_csv):
 
     model = models.Sequential()
 
-    model.add(layers.Dense(500, activation="relu", input_shape=(100,)))
-    model.add(layers.Dropout(0.3, noise_shape=None, seed=None))
-    model.add(layers.Dense(250, activation="relu"))
-    model.add(layers.Dropout(0.2, noise_shape=None, seed=None))
+    model.add(layers.Dense(500, activation="relu", input_shape=(SAMPLE_LENGTH,)))
+    model.add(layers.Dense(100, activation="relu"))
 
     model.add(layers.Dense(unique_classes, activation="softmax"))
     model.summary()
@@ -118,11 +116,11 @@ async def predict(msg, server_csv):
         words = sentence.split()
         words_vecs = [w2v_model.wv[word] for word in words if word in w2v_model.wv]
         if len(words_vecs) == 0:
-            return np.zeros(100)
+            return np.zeros(SAMPLE_LENGTH)
         words_vecs = np.array(words_vecs)
         return words_vecs.mean(axis=0)
 
-    topredict = tf.reshape(vectorize(preprocess(msg)), shape=(1, 100))
+    topredict = tf.reshape(vectorize(preprocess(msg)), shape=(1, SAMPLE_LENGTH))
 
     predictions = model.predict(topredict)
     pred = np.argmax(predictions, axis=1)
